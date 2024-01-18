@@ -1,14 +1,19 @@
 """This module is responsible for checking triggers and running processes."""
 
+from __future__ import annotations
 import os
 import subprocess
 from dataclasses import dataclass
 import uuid
+from typing import TYPE_CHECKING
 
 from OpenOrchestrator.common import crypto_util
 from OpenOrchestrator.database import db_util
 from OpenOrchestrator.database.triggers import Trigger, SingleTrigger, ScheduledTrigger, QueueTrigger, TriggerStatus
 from OpenOrchestrator.database.logs import LogLevel
+
+if TYPE_CHECKING:
+    from OpenOrchestrator.scheduler.run_tab import RunTab
 
 
 @dataclass
@@ -18,7 +23,7 @@ class Job():
     trigger: Trigger
 
 
-def poll_triggers(app) -> Job | None:
+def poll_triggers(run_tab: RunTab) -> Job | None:
     """Checks if any triggers are waiting to run. If any the first will be run and a
     corresponding job object will be returned.
 
@@ -29,30 +34,30 @@ def poll_triggers(app) -> Job | None:
         Job: A job object describing the job that has been launched, if any else None.
     """
 
-    other_processes_running = len(app.running_jobs) != 0
+    other_processes_running = len(run_tab.running_jobs) != 0
 
     # Single triggers
     next_single_trigger = db_util.get_next_single_trigger()
 
     if next_single_trigger and not (next_single_trigger.is_blocking and other_processes_running):
-        return run_single_trigger(next_single_trigger)
+        return run_single_trigger(next_single_trigger, run_tab)
 
     # Scheduled triggers
     next_scheduled_trigger = db_util.get_next_scheduled_trigger()
 
     if next_scheduled_trigger and not (next_scheduled_trigger.is_blocking and other_processes_running):
-        return run_scheduled_trigger(next_scheduled_trigger)
+        return run_scheduled_trigger(next_scheduled_trigger, run_tab)
 
     # Queue triggers
     next_queue_trigger = db_util.get_next_queue_trigger()
 
     if next_queue_trigger and not (next_queue_trigger.is_blocking and other_processes_running):
-        return run_queue_trigger(next_queue_trigger)
+        return run_queue_trigger(next_queue_trigger, run_tab)
 
     return None
 
 
-def run_single_trigger(trigger: SingleTrigger) -> Job | None:
+def run_single_trigger(trigger: SingleTrigger, run_tab: RunTab) -> Job | None:
     """Mark a single trigger as running in the database
     and start the process.
 
@@ -63,10 +68,10 @@ def run_single_trigger(trigger: SingleTrigger) -> Job | None:
         Job: A Job object describing the process if successful.
     """
 
-    print('Running trigger: ', trigger.trigger_name)
+    run_tab.log_area.push(f'Running trigger: {trigger.trigger_name}')
 
     if db_util.begin_single_trigger(trigger.id):
-        process = run_process(trigger)
+        process = run_process(trigger, run_tab)
 
         if process is not None:
             return Job(process, trigger)
@@ -74,7 +79,7 @@ def run_single_trigger(trigger: SingleTrigger) -> Job | None:
     return None
 
 
-def run_scheduled_trigger(trigger: ScheduledTrigger) -> Job | None:
+def run_scheduled_trigger(trigger: ScheduledTrigger, run_tab: RunTab) -> Job | None:
     """Mark a scheduled trigger as running in the database,
     calculate the next run datetime,
     and start the process.
@@ -85,10 +90,10 @@ def run_scheduled_trigger(trigger: ScheduledTrigger) -> Job | None:
     Returns:
         Job: A Job object describing the process if successful.
     """
-    print('Running trigger: ', trigger.trigger_name)
+    run_tab.log_area.push(f'Running trigger: {trigger.trigger_name}')
 
     if db_util.begin_scheduled_trigger(trigger.id):
-        process = run_process(trigger)
+        process = run_process(trigger, run_tab)
 
         if process is not None:
             return Job(process, trigger)
@@ -96,7 +101,7 @@ def run_scheduled_trigger(trigger: ScheduledTrigger) -> Job | None:
     return None
 
 
-def run_queue_trigger(trigger: QueueTrigger) -> Job | None:
+def run_queue_trigger(trigger: QueueTrigger, run_tab: RunTab) -> Job | None:
     """Mark a queue trigger as running in the database
     and start the process.
 
@@ -106,10 +111,10 @@ def run_queue_trigger(trigger: QueueTrigger) -> Job | None:
     Returns:
         Job: A Job object describing the process if successful.
     """
-    print('Running trigger: ', trigger.trigger_name)
+    run_tab.log_area.push(f'Running trigger: {trigger.trigger_name}')
 
     if db_util.begin_queue_trigger(trigger.id):
-        process = run_process(trigger)
+        process = run_process(trigger, run_tab)
 
         if process is not None:
             return Job(process, trigger)
@@ -203,7 +208,7 @@ def fail_job(job: Job) -> None:
     db_util.set_trigger_status(job.trigger.id, TriggerStatus.FAILED)
 
 
-def run_process(trigger: Trigger) -> subprocess.Popen | None:
+def run_process(trigger: Trigger, run_tab: RunTab) -> subprocess.Popen | None:
     """Runs the process of the given trigger with the necessary inputs:
     Process name
     Connection string
@@ -247,8 +252,8 @@ def run_process(trigger: Trigger) -> subprocess.Popen | None:
     # pylint: disable=broad-exception-caught
     except Exception as exc:
         db_util.set_trigger_status(trigger.id, TriggerStatus.FAILED)
-        error_msg = f"Scheduler couldn't launch the process:\n{exc.__class__.__name__}:\n{exc}"
+        error_msg = f"Scheduler couldn't launch the process:\n\t{exc.__class__.__name__}:\n\t{exc}"
         db_util.create_log(trigger.process_name, LogLevel.ERROR, error_msg)
-        print(error_msg)
+        run_tab.log_area.push(error_msg)
 
     return None
