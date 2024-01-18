@@ -9,17 +9,44 @@ from nicegui import ui
 from OpenOrchestrator.database import db_util
 from OpenOrchestrator.scheduler import runner
 
+SpinnerTypes = (
+    'audio',
+    'ball',
+    'bars',
+    'box',
+    'clock',
+    'comment',
+    'cube',
+    'dots',
+    'facebook',
+    'gears',
+    'grid',
+    'hearts',
+    'hourglass',
+    'infinity',
+    'ios',
+    'orbit',
+    'oval',
+    'pie',
+    'puff',
+    'radio',
+    'rings',
+    'tail',
+)
+
 
 class RunTab:
     """The run tab object for Scheduler."""
     def __init__(self, tab_name: str) -> None:
         self.running = False
         self.running_jobs = []
+        self.timer = ui.timer(10, self.loop, active=False)
 
         with ui.tab_panel(tab_name):
+            self.button = ui.button("Run", on_click=self.button_click).classes("w-48")
             with ui.row():
-                self.button = ui.button("Run", on_click=self.button_click).classes("w-48")
-                ui.spinner("gears", size='lg').bind_visibility_from(self, 'running')
+                for s in SpinnerTypes:
+                    ui.spinner(s, size='xl')
             ui.label("Log").classes("text-xl")
             self.log_area = ui.log(max_lines=1000).classes("w-full h-96")
 
@@ -29,6 +56,8 @@ class RunTab:
             self.pause()
         else:
             self.run()
+
+        self.update()
 
     def run(self):
         """Start Scheduler."""
@@ -40,7 +69,7 @@ class RunTab:
         self.running = True
         self.button.text = "Pause"
 
-        ui.timer(0.1, self.loop, once=True)
+        self.timer.activate()
 
     def pause(self):
         """Pause Scheduler."""
@@ -52,6 +81,7 @@ class RunTab:
         """The main loop function of the Scheduler.
         Checks heartbeats, check triggers, and schedules the next loop.
         """
+        self.timer.deactivate()
         self.log_area.push(datetime.now())
 
         self.check_heartbeats()
@@ -66,7 +96,7 @@ class RunTab:
         # Schedule next loop
         if self.running or len(self.running_jobs) > 0:
             self.log_area.push('Waiting 10 seconds...\n')
-            ui.timer(10, self.loop, once=True)
+            self.timer.activate()
         else:
             self.log_area.push("Scheduler is paused and no more processes are running.")
 
@@ -105,3 +135,20 @@ class RunTab:
 
             if job is not None:
                 self.running_jobs.append(job)
+
+    def update(self):
+        """Pause or unpause spinner."""
+        if self.running:
+            ui.run_javascript(
+                '''
+                    for (let e of document.getElementsByTagName('svg'))
+                        e.unpauseAnimations()
+                '''
+            )
+        else:
+            ui.run_javascript(
+                '''
+                    for (let e of document.getElementsByTagName('svg'))
+                        e.pauseAnimations()
+                '''
+            )
