@@ -17,15 +17,15 @@ class Application():
                 ui.tab('Settings')
 
             ui.space()
-            # TODO: Dark mode
+            ui.button(icon="contrast", on_click=ui.dark_mode().toggle)
 
-        with ui.tab_panels(self.tabs, value='Settings').classes('w-full'):
-            RunTab('Run')
+        with ui.tab_panels(self.tabs, value='Settings', on_change=self._update_tab).classes('w-full') as self.tab_panels:
+            self.run_tab = RunTab('Run')
             SettingsTab("Settings")
 
         self._define_on_close()
         app.on_disconnect(app.shutdown)
-        ui.run(title="Scheduler", favicon='🤖', native=False, port=34538, reload=True)  # TODO: Set reload false
+        ui.run(title="Scheduler", favicon='🤖', native=False, port=34538, reload=True, show_welcome_message=False)  # TODO: Set reload false
 
     def _define_on_close(self) -> None:
         """Tell the browser to ask for confirmation before leaving the page."""
@@ -34,6 +34,10 @@ class Application():
                 window.addEventListener("beforeunload", (event) => event.preventDefault());
             </script>
             ''')
+
+    def _update_tab(self):
+        if self.tab_panels.value == 'Run':
+            self.run_tab.update()
 
 
 if __name__ in {'__main__', '__mp_main__'}:
