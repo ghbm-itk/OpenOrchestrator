@@ -1,49 +1,40 @@
 """This module is the entry point for the Scheduler app. It contains a single class
 that when created starts the application."""
 
-import tkinter
-from tkinter import ttk, messagebox
-from OpenOrchestrator.scheduler import settings_tab, run_tab
+from nicegui import ui, app
 
-class Application(tkinter.Tk):
-    """The main application object of the Scheduler app.
-    Extends the tkinter.Tk object.
-    """
-    def __init__(self):
-        # Disable pylint duplicate code error since it
-        # mostly reacts to the layout code being similar.
-        # pylint: disable=R0801
-        self.running_jobs = []
-        self.running = False
-
-        super().__init__()
-        self.title("OpenOrchestrator - Scheduler")
-        self.geometry("850x600")
-        style = ttk.Style(self)
-        style.theme_use('vista')
-
-        notebook = ttk.Notebook(self)
-        notebook.pack(expand=True, fill='both')
-
-        run_tab_ = run_tab.create_tab(notebook, self)
-        settings_tab_ = settings_tab.create_tab(notebook)
-
-        notebook.add(run_tab_, text='Run')
-        notebook.add(settings_tab_, text="Settings")
-
-        notebook.select(1)
-
-        self.protocol('WM_DELETE_WINDOW', self.on_close)
-
-        self.mainloop()
-
-    def on_close(self):
-        """Checks whether any jobs are still running and prompts the user before closing."""
-        if (len(self.running_jobs) == 0
-                or messagebox.askyesno('Warning', 'Some processes are still running. Closing the scheduler while processes are running will gum up the trigger tables. Are you sure you want to close?')):
-            self.destroy()
+from OpenOrchestrator.scheduler.settings_tab import SettingsTab
+from OpenOrchestrator.scheduler.run_tab import RunTab
 
 
+# pylint: disable-next=too-few-public-methods
+class Application():
+    """The main application object of the Scheduler app."""
+    def __init__(self) -> None:
+        with ui.header():
+            with ui.tabs() as self.tabs:
+                ui.tab('Run')
+                ui.tab('Settings')
 
-if __name__=='__main__':
+            ui.space()
+            # TODO: Dark mode
+
+        with ui.tab_panels(self.tabs, value='Settings').classes('w-full'):
+            RunTab('Run')
+            SettingsTab("Settings")
+
+        self._define_on_close()
+        app.on_disconnect(app.shutdown)
+        ui.run(title="Scheduler", favicon='🤖', native=False, port=34538, reload=True)  # TODO: Set reload false
+
+    def _define_on_close(self) -> None:
+        """Tell the browser to ask for confirmation before leaving the page."""
+        ui.add_body_html('''
+            <script>
+                window.addEventListener("beforeunload", (event) => event.preventDefault());
+            </script>
+            ''')
+
+
+if __name__ in {'__main__', '__mp_main__'}:
     Application()
