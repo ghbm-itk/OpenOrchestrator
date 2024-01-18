@@ -65,7 +65,7 @@ class RunTab:
             ui.notify("Not connected", type='warning')
             return
 
-        self.log_area.push("Running...")
+        self.log_area.push("Running...\n")
         self.running = True
         self.button.text = "Pause"
 
@@ -73,7 +73,7 @@ class RunTab:
 
     def pause(self):
         """Pause Scheduler."""
-        self.log_area.push("Paused... Please wait for all processes to stop before closing the application")
+        self.log_area.push("Paused... Please wait for all processes to stop before closing the application\n")
         self.running = False
         self.button.text = "Run"
 
