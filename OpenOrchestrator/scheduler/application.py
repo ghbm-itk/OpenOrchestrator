@@ -25,7 +25,7 @@ class Application():
 
         self._define_on_close()
         app.on_disconnect(app.shutdown)
-        ui.run(title="Scheduler", favicon='🤖', native=False, port=34538, reload=True, show_welcome_message=False)  # TODO: Set reload false
+        ui.run(title="Scheduler", favicon='🤖', native=False, port=34538, reload=False)
 
     def _define_on_close(self) -> None:
         """Tell the browser to ask for confirmation before leaving the page."""
