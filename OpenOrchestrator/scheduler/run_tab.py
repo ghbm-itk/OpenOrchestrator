@@ -77,6 +77,9 @@ class RunTab:
         self.running = False
         self.button.text = "Run"
 
+        # Trigger a loop immediately
+        self.loop()
+
     def loop(self):
         """The main loop function of the Scheduler.
         Checks heartbeats, check triggers, and schedules the next loop.
