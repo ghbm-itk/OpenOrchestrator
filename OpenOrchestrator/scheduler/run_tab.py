@@ -107,10 +107,10 @@ class RunTab:
                 self.running_jobs.remove(job)
 
                 if job.process.returncode == 0:
-                    self.log_area.push(f"Process '{job.trigger.process_name}' is done")
+                    self.log_area.push(f"Process '{job.trigger.process_name}' is done.")
                     runner.end_job(job)
                 else:
-                    self.log_area.push(f"Process '{job.trigger.process_name}' failed")
+                    self.log_area.push(f"Process '{job.trigger.process_name}' failed. Check process log for more info.")
                     runner.fail_job(job)
 
             else:
