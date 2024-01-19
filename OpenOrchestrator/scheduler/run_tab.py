@@ -58,6 +58,7 @@ class RunTab:
             self.run()
 
         self.update()
+        self.loop()
 
     def run(self):
         """Start Scheduler."""
@@ -69,16 +70,11 @@ class RunTab:
         self.running = True
         self.button.text = "Pause"
 
-        self.timer.activate()
-
     def pause(self):
         """Pause Scheduler."""
         self.log_area.push("Paused... Please wait for all processes to stop before closing the application\n")
         self.running = False
         self.button.text = "Run"
-
-        # Trigger a loop immediately
-        self.loop()
 
     def loop(self):
         """The main loop function of the Scheduler.
@@ -101,7 +97,7 @@ class RunTab:
             self.log_area.push('Waiting 10 seconds...\n')
             self.timer.activate()
         else:
-            self.log_area.push("Scheduler is paused and no more processes are running.")
+            self.log_area.push("Scheduler is paused and no more processes are running.\n")
 
     def check_heartbeats(self) -> None:
         """Check if any running jobs are still running, failed or done."""
